@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+IFS=$'\n\t'
 
 CONFIG_FILE="config.json"
-UPDATED=false
+UPDATED=1  # 0 = updated, 1 = no update
 
 mkdir -p tmp
 rm -rf tmp/*
 
-jq -r 'keys[]' "$CONFIG_FILE" | while read -r name; do
+update_formula() {
+  local name="$1"
+  local type repo prefix tag latest_tag files formula_path current_tag url archive sha
+
   echo "🔍 Processing $name..."
 
   type=$(jq -r ".\"$name\".type" "$CONFIG_FILE")
@@ -26,7 +30,7 @@ jq -r 'keys[]' "$CONFIG_FILE" | while read -r name; do
 
   if [ "$tag" = "$current_tag" ]; then
     echo "⏩ $name is already up to date (tag: $tag)"
-    continue
+    return 1
   fi
 
   echo "📦 Updating $name from $current_tag → $tag"
@@ -59,15 +63,25 @@ jq -r 'keys[]' "$CONFIG_FILE" | while read -r name; do
   sed -i -E "s|^  sha256 \".*\"|  sha256 \"$sha\"|" "$formula_path"
   sed -i -E "s|^  version \".*\"|  version \"${tag#v}\"|" "$formula_path"
 
-  UPDATED=true
-done
+  return 0
+}
 
-if [ "$UPDATED" = true ]; then
-  echo "🚀 Committing changes..."
-  git config user.name "github-actions[bot]"
-  git config user.email "github-actions[bot]@users.noreply.github.com"
-  git commit -am "🔄 Auto-update formulas from config.json"
-  git push
-else
-  echo "✅ No changes detected. Done."
-fi
+main() {
+  for name in $(jq -r 'keys[]' "$CONFIG_FILE"); do
+    if update_formula "$name"; then
+      UPDATED=0
+    fi
+  done
+
+  if [ $UPDATED -eq 0 ]; then
+    echo "🚀 Committing changes..."
+    git config user.name "github-actions[bot]"
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git commit -am "🔄 Auto-update formulas from config.json"
+    git push
+  else
+    echo "✅ No changes detected. Done."
+  fi
+}
+
+main "$@"
