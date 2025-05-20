@@ -1,7 +1,9 @@
 name: Update Homebrew Tap
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  push:
+    branches:
+      - main
 
 jobs:
   update:
