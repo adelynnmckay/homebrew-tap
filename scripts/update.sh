@@ -77,7 +77,7 @@ main() {
     echo "🚀 Committing changes..."
     git config user.name "github-actions[bot]"
     git config user.email "github-actions[bot]@users.noreply.github.com"
-    git commit -am "🔄 Auto-update formulas from config.json"
+    git commit -am "[github-actions] auto-update formula for version bump"
     git push
   else
     echo "✅ No changes detected. Done."
