@@ -21,3 +21,4 @@ class GodSh < Formula
     system "#{bin}/god.sh", "--help"
   end
 end
+
