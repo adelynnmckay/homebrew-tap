@@ -1,0 +1,58 @@
+name: Sync Formulas from Latest Releases
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v3
+
+      - name: Sync formulas from latest release tags
+        run: |
+          set -eux
+
+          UPDATED=0
+
+          for file in Formula/*.rb; do
+            repo_name=$(basename "$file" .rb)
+
+            # Get latest tag from GitHub API
+            latest_tag=$(curl -s "https://api.github.com/repos/adelynnmckay/$repo_name/releases/latest" | jq -r .tag_name)
+
+            # Skip if no tag found
+            if [ "$latest_tag" = "null" ]; then
+              echo "No release found for $repo_name"
+              continue
+            fi
+
+            url="https://raw.githubusercontent.com/adelynnmckay/$repo_name/$latest_tag/Formula/$repo_name.rb"
+            echo "Fetching $repo_name.rb from $url"
+
+            curl -fsSL "$url" -o "Formula/$repo_name.rb.new"
+
+            if ! cmp -s "Formula/$repo_name.rb" "Formula/$repo_name.rb.new"; then
+              echo "Updating Formula/$repo_name.rb"
+              mv "Formula/$repo_name.rb.new" "Formula/$repo_name.rb"
+              git add "Formula/$repo_name.rb"
+              UPDATED=1
+            else
+              echo "No changes for $repo_name"
+              rm "Formula/$repo_name.rb.new"
+            fi
+          done
+
+          if [ "$UPDATED" -eq 1 ]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git commit -m "Update formulas from latest tagged releases"
+            git push
+          else
+            echo "All formulas are up to date."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
