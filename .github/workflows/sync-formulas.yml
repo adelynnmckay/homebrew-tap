@@ -18,6 +18,9 @@ jobs:
 
           UPDATED=0
 
+          git fetch --all
+          git reset --hard origin/main
+
           for file in Formula/*.rb; do
             repo_name=$(basename "$file" .rb)
 
