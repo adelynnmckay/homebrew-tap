@@ -1,8 +1,0 @@
-{
-  "god.sh": {
-    "type": "formula",
-    "repo": "adelynnmckay/god.sh",
-    "version_prefix": "v",
-    "files": ["god.sh"]
-  }
-}
