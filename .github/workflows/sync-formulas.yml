@@ -24,28 +24,31 @@ jobs:
           for file in Formula/*.rb; do
             repo_name=$(basename "$file" .rb)
 
-            # Get latest tag from GitHub API
+            # Get latest release tag
             latest_tag=$(curl -s "https://api.github.com/repos/adelynnmckay/$repo_name/releases/latest" | jq -r .tag_name)
-
-            # Skip if no tag found
             if [ "$latest_tag" = "null" ]; then
               echo "No release found for $repo_name"
               continue
             fi
 
-            url="https://raw.githubusercontent.com/adelynnmckay/$repo_name/$latest_tag/Formula/$repo_name.rb"
-            echo "Fetching $repo_name.rb from $url"
+            # Download the latest formula
+            formula_url="https://raw.githubusercontent.com/adelynnmckay/$repo_name/$latest_tag/Formula/$repo_name.rb"
+            curl -fsSL "$formula_url" -o "Formula/$repo_name.rb"
 
-            curl -fsSL "$url" -o "Formula/$repo_name.rb.new"
+            # Get the corresponding tarball and compute SHA256
+            tarball_url="https://github.com/adelynnmckay/$repo_name/archive/refs/tags/$latest_tag.tar.gz"
+            sha=$(curl -sL "$tarball_url" | shasum -a 256 | cut -d' ' -f1)
 
-            if ! cmp -s "Formula/$repo_name.rb" "Formula/$repo_name.rb.new"; then
-              echo "Updating Formula/$repo_name.rb"
-              mv "Formula/$repo_name.rb.new" "Formula/$repo_name.rb"
+            # Inject SHA256 into formula
+            sed -i'' "s|^  sha256 \".*\"|  sha256 \"$sha\"|" "Formula/$repo_name.rb"
+
+            # Check if file has changed
+            if ! git diff --quiet -- "Formula/$repo_name.rb"; then
+              echo "Formula for $repo_name updated"
               git add "Formula/$repo_name.rb"
               UPDATED=1
             else
               echo "No changes for $repo_name"
-              rm "Formula/$repo_name.rb.new"
             fi
           done
 
